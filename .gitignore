@@ -1,0 +1,12 @@
+__pycache__
+_build
+.xls
+.xlsx
+.ipynb
+.csv
+.idea/
+doc/_build
+doc/_static
+doc/_templates
+doc/make.bat
+doc/Makefile
