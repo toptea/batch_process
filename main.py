@@ -1,88 +1,75 @@
-from win32com.client import gencache
-from subprocess import Popen
-from glob import glob
-
-import win32com.client
-import time
-import os
+import pandas as pd
+import system
+import inventor
+from pprint import pprint
 
 
-EXPORT_DIR = 'C:\\Users\\GARY\\Desktop\\CAD\\'
-INVENTOR_DIR = 'D:\\BC-Workspace\\GARY\\M-Balmoral,D-AGR\\Projects\\'
-INVENTOR = 'C:\\Program Files\\Autodesk\\Inventor 2016\\Bin\\Inventor.exe'
+def export_part_list(partcode, app):
+    path = system.find_path(partcode, 'idw')
+    idw = inventor.Drawing(path, app)
+    idw.export_part_list('xlsx')
+    idw.close()
 
 
-def start_application():
-    """Inventor Application Object
-    Start COM client session with Inventor, and create object "mod" that will
-    point to the Python COM wrapper for Inventor's type library. Recast "app"
-    as an instance of the Application class in the wrapper.
-    """
-    if 'Inventor.exe' not in os.popen("tasklist").read():
-        Popen(INVENTOR)
-        time.sleep(5)
-    mod = gencache.EnsureModule(
-        '{D98A091D-3A0F-4C3E-B36E-61F62068D488}', 0, 1, 0)
-    app = win32com.client.Dispatch('Inventor.Application')
-    app = mod.Application.Application(app)
-    app.SilentOperation = True
-    app.Visible = True
-    return app
+def load_children(partcode):
+    path = system.EXPORT_DIR.joinpath(partcode).joinpath('part_list.xlsx')
+    df = pd.read_excel(str(path))
+    partcodes = df.loc[df['Dwg_No'].notnull(), 'Dwg_No'].unique()
+    return partcodes
 
 
-class Document:
+def create_format_matrix(assembly):
+    ipt_paths = []
+    iam_paths = []
+    idw_paths = []
+    dwg_paths = []
+    partcodes = load_children(assembly)
+    for partcode in partcodes:
+        ipt_paths.append(system.find_path(partcode, 'ipt') is not None)
+        iam_paths.append(system.find_path(partcode, 'iam') is not None)
+        idw_paths.append(system.find_path(partcode, 'idw') is not None)
+        dwg_paths.append(system.find_path(partcode, 'dwg') is not None)
 
-    def __init__(self, partcode):
-        self.partcode = partcode
-        self.filepath = self.inventor_filepath(partcode+'iam')
-        self.doc = self.load(self.filepath)
+    df = pd.DataFrame()
+    df['partcode'] = partcodes
+    df['ipt'] = ipt_paths
+    df['iam'] = iam_paths
+    df['idw'] = idw_paths
+    df['dwg'] = dwg_paths
 
-    def inventor_filepath(self, filename, directory=INVENTOR_DIR):
-        client = '*\\'
-        project = filename[0:7] + '\\'
-        section = filename[8:11] + '\\'
-        paths = glob(directory + client + project + section + filename)
-        if len(paths) > 1:
-            print('Warning - multiple files found. Use first in the list')
-        if len(paths) == 0:
-            print('Unable to find ' + filename)
-        if len(paths) > 0:
-            return paths[0]
-
-    def load(self, filename, app):
-        """Inventor Document Object
-        Check document type and bind the document COM object to the associate
-        class in the wrapper.
-        """
-        doc_type = {
-            12291: 'AssemblyDocument',
-            12294: 'DesignElementDocument',
-            12292: 'DrawingDocument',
-            12295: 'ForeignModelDocument',
-            12297: 'NoDocument',
-            12290: 'PartDocument',
-            12293: 'PresentationDocument',
-            12296: 'SATFileDocument',
-            12289: 'UnnownDocument',
-        }
-        app.Documents.Open(r'C:\Users\GARY\Desktop\AGR1197-105-00.idw')
-        doc = win32com.client.CastTo(
-            app.ActiveDocument, doc_type[app.ActiveDocumentType])
-        print(doc_type[app.ActiveDocumentType])
-        return doc
-
-    def close(self):
-        self.doc.Close()
+    path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
+    df.to_excel(str(path))
 
 
-def create_skeleton(partcode, directory=EXPORT_DIR):
-    if not os.path.exists(directory+partcode):
-        os.makedirs(directory + partcode + '\\pdf\\A0')
+def export_drawing_info(assembly, app):
+    rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
+    path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
+    df = pd.read_excel(str(path))
+    partcodes = df.loc[df['idw']==True, 'partcode']
+
+    paths = []
+    for partcode in partcodes:
+        path = system.find_path(partcode, 'idw')
+        paths.append(path)
+
+    for path in paths:
+        idw = inventor.Drawing(path, app)
+        row = idw.get_drawing_info()
+        rs = rs.append(row, ignore_index=True)
+        print(row)
+        idw.close()
+
+    path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
+    rs.to_excel(str(path))
 
 
-def main():
-    start_application()
+def batch_export(partcode):
+    system.create_project(partcode)
+    app = inventor.application()
+    export_part_list(partcode, app)
+    create_format_matrix(partcode)
+    export_drawing_info(partcode, app)
 
 
 if __name__ == '__main__':
-    main()
+    batch_export('AGR1316-112-00')
