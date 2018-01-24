@@ -79,13 +79,13 @@ def export_to_ui():
             exit()
         else:
             print("    Please enter the file format you want to convert to.")
-            file_type = input('File format: ')
-            if file_type == 'b' or file_type == 'back':
+            filetype = input('File format: ')
+            if filetype == 'b' or filetype == 'back':
                 main_ui()
-            elif file_type == 'q' or file_type == 'quit':
+            elif filetype == 'q' or filetype == 'quit':
                 exit()
             else:
-                core.export_to(partcode, file_type)
+                core.export_to(partcode, filetype)
 
 
 if __name__ == '__main__':

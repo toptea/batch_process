@@ -117,8 +117,11 @@ def batch_export(assembly):
 
 def export_to(partcode, filetype):
     app = inventor.application()
-
-    if filetype in ['ipt', 'igs', 'iges', 'stl', 'step', 'stp']:
+    ipt_convert = [
+        'CATPart', 'jt', 'ipt', 'igs', 'iges', 'sat',
+        'smt', 'stl', 'step', 'stp', 'xgl', 'zgl'
+    ]
+    if filetype in ipt_convert:
         path = system.find_path(partcode, 'ipt')
         inv = inventor.Part(path, app)
     else:
