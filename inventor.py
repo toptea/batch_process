@@ -130,14 +130,13 @@ class Drawing(Document):
         iprop = self.doc.PropertySets.Item("Inventor User Defined Properties")
         drawing_info = {
             'partcode': str(iprop.Item('Dwg_No')),
-            'rev': str(iprop.Item('Revision')),
+            'rev': int(iprop.Item('Revision')),
             'desc': str(iprop.Item('Component')),
             'material': str(iprop.Item('Material')),
             'finish': str(iprop.Item('Finish')),
             'size': self.get_drawing_sheet_size()
         }
         return drawing_info
-
 
     def export_part_list(self, filetype='xlsx'):
         """Part List
@@ -164,12 +163,11 @@ class Assembly(Document):
 
         Export the assembly's bom to an excel spreadsheet.
         """
+        path = self.export_dir.joinpath(self.partcode).joinpath('bom.xlsx')
         bom = self.doc.ComponentDefinition.BOM
         bom.StructuredViewFirstLevelOnly = False
         bom.StructuredViewEnabled = True
-        bom.BOMViews.Item("Structured").Export(
-            self.export_dir + self.partcode + '\\iam_bom.xlsx', 74498
-        )
+        bom.BOMViews.Item("Structured").Export(path, 74498)
 
 
 class Part(Document):

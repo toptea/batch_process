@@ -1,109 +1,93 @@
-import pandas as pd
-import system
-import inventor
-import os
-import zipfile
+import core
 
 
-def export_assembly(assembly, app):
-    """export part list and assembly drawing"""
-    path = system.find_path(assembly, 'idw')
-    idw = inventor.Drawing(path, app)
-
-    rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
-    drawing_info = idw.get_drawing_info()
-    rs = rs.append(drawing_info, ignore_index=True)
-    path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
-    rs.to_excel(str(path), index=False)
-    _export_drawing(idw, assembly, drawing_info, is_assy=True)
-    idw.export_part_list('xlsx')
-    idw.close()
-
-
-def _export_drawing(idw, assembly, drawing_info, is_assy=False):
-    print_size = drawing_info['size']
-    if print_size == 'A2':
-        print_size = 'A3'
-    print_dir = assembly + '/print/' + print_size + '/'
-    idw.export_to(print_dir, 'pdf')
-    idw.export_to(assembly + '/pdf/', 'pdf')
-    if not is_assy:
-        idw.export_to(assembly + '/dxf/', 'dxf')
-        # idw.export_to(assembly + '/dwg/', 'dwg')
+def title():
+    print(
+        """
+        -------------------------------------------------------------
+        ______       _       _       _____                      _
+        | ___ \     | |     | |     |  ___|                    | |
+        | |_/ / __ _| |_ ___| |__   | |____  ___ __   ___  _ __| |_
+        | ___ \/ _` | __/ __| '_ \  |  __\ \/ / '_ \ / _ \| '__| __|
+        | |_/ / (_| | || (__| | | | | |___>  <| |_) | (_) | |  | |_
+        \____/ \__,_|\__\___|_| |_| \____/_/\_\ .__/ \___/|_|   \__|
+                                              | |
+                                              |_|
+        -------------------------------------------------------------
+                                by Gary Ip
+        """
+    )
 
 
-def _load_children(assembly):
-    path = system.EXPORT_DIR.joinpath(assembly).joinpath('part_list.xlsx')
-    df = pd.read_excel(str(path))
-    partcodes = df.loc[df['Dwg_No'].notnull(), 'Dwg_No'].unique()
-    return partcodes
+def main_ui():
+    print(
+        """
+        Welcome!
+
+        This program provide the user an easy way to publish drawings
+        from Autodesk Inventor. Just type in the assembly number for
+        batch export, or the partcode for the exporting one file only.
+
+        Before you start, please make sure:
+        a) Save and close any active inventor file you have opened.
+        b) All Inventor files are synchronized in Meridian.
+        c) The BOM/part list on the assembly's iam/idw file can be accessed.
+        d) Input/Output paths are correct in setup.ini
+
+        Please pick the following options:
+        1) Batch Export
+        2) Export to...
+        q) quit
+        """
+    )
+
+    while True:
+        user_input = input('Export: ')
+        if user_input == '1':
+            batch_export_ui()
+        elif user_input == '2':
+            export_to_ui()
+        elif user_input == 'q' or user_input == 'quit':
+            exit()
+        else:
+            print('Please enter a valid option')
 
 
-def create_format_matrix(assembly):
-    ipt_paths = []
-    iam_paths = []
-    idw_paths = []
-    dwg_paths = []
-    partcodes = _load_children(assembly)
-    for partcode in partcodes:
-        ipt_paths.append(system.find_path(partcode, 'ipt') is not None)
-        iam_paths.append(system.find_path(partcode, 'iam') is not None)
-        idw_paths.append(system.find_path(partcode, 'idw') is not None)
-        dwg_paths.append(system.find_path(partcode, 'dwg') is not None)
-
-    df = pd.DataFrame()
-    df['partcode'] = partcodes
-    df['ipt'] = ipt_paths
-    df['iam'] = iam_paths
-    df['idw'] = idw_paths
-    df['dwg'] = dwg_paths
-
-    path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
-    df.to_excel(str(path), index=False)
+def batch_export_ui():
+    print("    Please enter an assembly number you want to export.")
+    print("    Enter 'b' to go back")
+    print("    Enter 'q' to quit\n")
+    while True:
+        user_input = input('Batch export: ')
+        if user_input == 'b' or user_input == 'back':
+            main_ui()
+        elif user_input == 'q' or user_input == 'quit':
+            exit()
+        else:
+            core.batch_export(user_input)
 
 
-def export_parts(assembly, app):
-    info_path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
-    if os.path.exists(str(info_path)):
-        rs = pd.read_excel(str(info_path))
-    else:
-        rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
-
-    path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
-    df = pd.read_excel(str(path))
-    df = df.loc[df['idw']==True, ['partcode', 'iam']]
-
-    paths = []
-    for partcode in df['partcode']:
-        path = system.find_path(partcode, 'idw')
-        paths.append(path)
-
-    for path, is_assy in zip(paths, df['iam']):
-        idw = inventor.Drawing(path, app)
-        drawing_info = idw.get_drawing_info()
-        rs = rs.append(drawing_info, ignore_index=True)
-        _export_drawing(idw, assembly, drawing_info, is_assy)
-        idw.close()
-
-    rs.to_excel(str(info_path), index=False)
-
-    for partcode in df['partcode']:
-        file = partcode + '.zip'
-        export_path = system.EXPORT_DIR.joinpath(assembly).joinpath('dxf')
-        with zipfile.ZipFile(str(export_path.joinpath(file)), 'r') as zip_ref:
-            zip_ref.extractall(str(export_path))
-        os.remove(str(export_path.joinpath(file)))
-
-
-def batch_export(assembly):
-    system.create_project(assembly)
-    app = inventor.application()
-    export_assembly(assembly, app)
-    create_format_matrix(assembly)
-    export_parts(assembly, app)
+def export_to_ui():
+    print("    Please enter the drawing number you want to export.")
+    print("    Enter 'b' to go back")
+    print("    Enter 'q' to quit\n")
+    while True:
+        partcode = input('Export: ')
+        if partcode == 'b' or partcode == 'back':
+            main_ui()
+        elif partcode == 'q' or partcode == 'quit':
+            exit()
+        else:
+            print("    Please enter the file format you want to convert to.")
+            file_type = input('File format: ')
+            if file_type == 'b' or file_type == 'back':
+                main_ui()
+            elif file_type == 'q' or file_type == 'quit':
+                exit()
+            else:
+                core.export_to(partcode, file_type)
 
 
 if __name__ == '__main__':
-    batch_export('AGR1316-112-00')
-
-
+    title()
+    main_ui()
