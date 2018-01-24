@@ -22,9 +22,12 @@ def create_project(partcode):
     directory = str(EXPORT_DIR.joinpath(partcode))
     if not os.path.exists(directory):
         os.makedirs(directory)
-        os.makedirs(directory + '\pdf\A0')
-        os.makedirs(directory + '\pdf\A1')
-        os.makedirs(directory + '\pdf\A3')
+        os.makedirs(directory + '\print\A0')
+        os.makedirs(directory + '\print\A1')
+        os.makedirs(directory + '\print\A3')
+        os.makedirs(directory + '\pdf')
+        os.makedirs(directory + '\dxf')
+        # os.makedirs(directory + '\dwg')
 
 
 def find_path(partcode, filetype):

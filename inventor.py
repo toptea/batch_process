@@ -21,6 +21,8 @@ class Document:
     ----------
     path : obj
         Path Object from python pathlib module
+    app : obj
+        Inventor Application COM Object
     doc : obj
         Inventor Document COM Object
     export_dir : str
@@ -28,6 +30,7 @@ class Document:
     """
 
     def __init__(self, path, app, export_dir=EXPORT_DIR):
+        self.app = app
         self.doc = self._load_document(path, app)
         self.export_dir = export_dir
         self.path = path
@@ -82,6 +85,18 @@ class Document:
             print('unable to load file')
             return None
 
+    def export_to(self, subdir, filetype='pdf'):
+        """Export file
+
+        Publish file into the export directory using the Inventor translator
+        add-in. Can export files such as; dwf, dxf, dwg, pdf, iges & step.
+        """
+        file = self.partcode + '.' + filetype
+        path = self.export_dir.joinpath(subdir).joinpath(file)
+        print(str(path))
+        self.doc.SaveAs(str(path), True)
+
+
     def close(self):
         """Close Document
 
@@ -123,6 +138,7 @@ class Drawing(Document):
         }
         return drawing_info
 
+
     def export_part_list(self, filetype='xlsx'):
         """Part List
 
@@ -133,44 +149,7 @@ class Drawing(Document):
         else:
             enum = 48642
         path = self.export_dir.joinpath(self.partcode).joinpath('part_list.xlsx')
-        #print('load doc -', self.doc)
-        #print('load sheet -', self.doc.Sheets(1))
-        #print('load part list -', self.doc.Sheets(1).PartsLists(1))
-
         self.doc.Sheets(1).PartsLists(1).Export(str(path), enum)
-
-    def export_to_dwf(self):
-        """DWF file
-
-        Publish dwf file into the export directory using the translator add-in.
-        Developed by AutoDesk, DWF stands for 'Design Web Format'.
-        """
-        pass
-
-    def export_to_dwg(self):
-        """DWG file
-
-        Publish dwg file into the export directory using the translator add-in.
-        It is the native format for programs like AutoCAD. Proprietary.
-        """
-        pass
-
-    def export_to_dxf(self):
-        """DXF file
-
-        Publish dxf file into the export directory using the translator add-in.
-        DXF stands for 'Drawing Exchange Format'. This format is create by
-        Autodesk to enable data interoperability between other programs.
-        """
-        pass
-
-    def export_to_pdf(self):
-        """PDF file
-
-        Publish pdf file into the export directory using the translator add-in.
-        PDF stands for 'Portable Document Format' and tt is commonly used.
-        """
-        pass
 
 
 class Assembly(Document):
@@ -192,23 +171,6 @@ class Assembly(Document):
             self.export_dir + self.partcode + '\\iam_bom.xlsx', 74498
         )
 
-    def export_to_iges(self):
-        """IGES file
-
-        Publish iges file into the export directory using the translator add-in.
-        IGES stands for 'Initial Graphics Exchange Specification'.
-        """
-        pass
-
-    def export_to_stp(self):
-        """STEP file
-
-        Publish stp file into the export directory using the translator add-in.
-        STEP file is a widely used format used to communicate between different
-        CAD programs.
-        """
-        pass
-
 
 class Part(Document):
     """Part Document
@@ -216,23 +178,7 @@ class Part(Document):
     The Part Class contains methods and properties for Inventor's
     PartDocument COM object. Used to query ipt file.
     """
-
-    def export_to_iges(self):
-        """IGES file
-
-        Publish iges file into the export directory using the translator add-in.
-        IGES stands for 'Initial Graphics Exchange Specification'.
-        """
-        pass
-
-    def export_to_stp(self):
-        """STEP file
-
-        Publish stp file into the export directory using the translator add-in.
-        STEP file is a widely used format used to communicate between different
-        CAD programs.
-        """
-        pass
+    pass
 
 
 def application(silent=True, visible=True):

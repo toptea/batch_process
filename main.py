@@ -1,18 +1,39 @@
 import pandas as pd
 import system
 import inventor
-from pprint import pprint
+import os
+import zipfile
 
 
-def export_part_list(partcode, app):
-    path = system.find_path(partcode, 'idw')
+def export_assembly(assembly, app):
+    """export part list and assembly drawing"""
+    path = system.find_path(assembly, 'idw')
     idw = inventor.Drawing(path, app)
+
+    rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
+    drawing_info = idw.get_drawing_info()
+    rs = rs.append(drawing_info, ignore_index=True)
+    path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
+    rs.to_excel(str(path), index=False)
+    _export_drawing(idw, assembly, drawing_info, is_assy=True)
     idw.export_part_list('xlsx')
     idw.close()
 
 
-def load_children(partcode):
-    path = system.EXPORT_DIR.joinpath(partcode).joinpath('part_list.xlsx')
+def _export_drawing(idw, assembly, drawing_info, is_assy=False):
+    print_size = drawing_info['size']
+    if print_size == 'A2':
+        print_size = 'A3'
+    print_dir = assembly + '/print/' + print_size + '/'
+    idw.export_to(print_dir, 'pdf')
+    idw.export_to(assembly + '/pdf/', 'pdf')
+    if not is_assy:
+        idw.export_to(assembly + '/dxf/', 'dxf')
+        # idw.export_to(assembly + '/dwg/', 'dwg')
+
+
+def _load_children(assembly):
+    path = system.EXPORT_DIR.joinpath(assembly).joinpath('part_list.xlsx')
     df = pd.read_excel(str(path))
     partcodes = df.loc[df['Dwg_No'].notnull(), 'Dwg_No'].unique()
     return partcodes
@@ -23,7 +44,7 @@ def create_format_matrix(assembly):
     iam_paths = []
     idw_paths = []
     dwg_paths = []
-    partcodes = load_children(assembly)
+    partcodes = _load_children(assembly)
     for partcode in partcodes:
         ipt_paths.append(system.find_path(partcode, 'ipt') is not None)
         iam_paths.append(system.find_path(partcode, 'iam') is not None)
@@ -38,38 +59,51 @@ def create_format_matrix(assembly):
     df['dwg'] = dwg_paths
 
     path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
-    df.to_excel(str(path))
+    df.to_excel(str(path), index=False)
 
 
-def export_drawing_info(assembly, app):
-    rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
+def export_parts(assembly, app):
+    info_path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
+    if os.path.exists(str(info_path)):
+        rs = pd.read_excel(str(info_path))
+    else:
+        rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
+
     path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
     df = pd.read_excel(str(path))
-    partcodes = df.loc[df['idw']==True, 'partcode']
+    df = df.loc[df['idw']==True, ['partcode', 'iam']]
 
     paths = []
-    for partcode in partcodes:
+    for partcode in df['partcode']:
         path = system.find_path(partcode, 'idw')
         paths.append(path)
 
-    for path in paths:
+    for path, is_assy in zip(paths, df['iam']):
         idw = inventor.Drawing(path, app)
-        row = idw.get_drawing_info()
-        rs = rs.append(row, ignore_index=True)
-        print(row)
+        drawing_info = idw.get_drawing_info()
+        rs = rs.append(drawing_info, ignore_index=True)
+        _export_drawing(idw, assembly, drawing_info, is_assy)
         idw.close()
 
-    path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
-    rs.to_excel(str(path))
+    rs.to_excel(str(info_path), index=False)
+
+    for partcode in df['partcode']:
+        file = partcode + '.zip'
+        export_path = system.EXPORT_DIR.joinpath(assembly).joinpath('dxf')
+        with zipfile.ZipFile(str(export_path.joinpath(file)), 'r') as zip_ref:
+            zip_ref.extractall(str(export_path))
+        os.remove(str(export_path.joinpath(file)))
 
 
-def batch_export(partcode):
-    system.create_project(partcode)
+def batch_export(assembly):
+    system.create_project(assembly)
     app = inventor.application()
-    export_part_list(partcode, app)
-    create_format_matrix(partcode)
-    export_drawing_info(partcode, app)
+    export_assembly(assembly, app)
+    create_format_matrix(assembly)
+    export_parts(assembly, app)
 
 
 if __name__ == '__main__':
     batch_export('AGR1316-112-00')
+
+
