@@ -1,5 +1,9 @@
-import win32com.client
+"""
+Inventor COM API
+"""
+
 from system import EXPORT_DIR, start_inventor
+import win32com.client
 
 
 class Document:
@@ -95,7 +99,6 @@ class Document:
         path = self.export_dir.joinpath(subdir).joinpath(file)
         print(str(path))
         self.doc.SaveAs(str(path), True)
-
 
     def close(self):
         """Close Document

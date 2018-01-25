@@ -1,3 +1,7 @@
+"""
+Operating System Methods
+"""
+
 from pathlib import Path
 from glob import glob
 
@@ -85,6 +89,10 @@ def find_paths(partcodes, filetype):
 
 
 def start_inventor():
+    """Open Inventor
+
+    Inventer must be active for the COM API to work.
+    """
     if 'Inventor.exe' not in os.popen("tasklist").read():
         subprocess.Popen(INVENTOR_APP)
         time.sleep(10)

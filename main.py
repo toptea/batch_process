@@ -1,3 +1,7 @@
+"""
+User Interface
+"""
+
 import core
 
 

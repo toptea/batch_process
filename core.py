@@ -1,31 +1,77 @@
-import pandas as pd
-import system
+"""
+Core Program
+"""
+
 import inventor
-import os
+import system
+
+import pandas as pd
 import zipfile
+import os
 
 
-def export_assembly(assembly, app):
-    """export part list and assembly drawing"""
+def process_assembly(assembly, app):
+    """Process Assembly
+
+    1) Open assembly drawing (ipt)
+    2) Pull drawing info to dict
+    3) Save to spreadsheet - drawing_info.xlsx
+    4) Export print, pdf and dxf files
+    5) Save to spreadsheet - part_list.xlsx
+    6) Open assembly part (iam)
+    7) Save spreadsheet - bom.xlsx
+
+    Parameters
+    ----------
+    assembly : str
+        AGR part number usually in 'AGR0000-000-00' format
+    app : obj
+        Inventor Application COM Object
+    """
+
+    # 1) Open assembly drawing (ipt)
     path = system.find_path(assembly, 'idw')
     idw = inventor.Drawing(path, app)
 
+    # 2) Pull drawing info to dict
     rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
     drawing_info = idw.get_drawing_info()
     rs = rs.append(drawing_info, ignore_index=True)
+
+    # 3) Save to spreadsheet - drawing_info.xlsx
     path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
     rs.to_excel(str(path), index=False)
+
+    # 4) Export print, pdf and dxf file
     _export_drawing(idw, assembly, drawing_info, is_assy=True)
+
+    # 5) Save to spreadsheet - part_list.xlsx
     idw.export_part_list('xlsx')
     idw.close()
 
+    # 6) Open assembly part (iam)
     path = system.find_path(assembly, 'iam')
     iam = inventor.Assembly(path, app)
+
+    # 7) Save spreadsheet - bom.xlsx
     iam.export_bom()
     iam.close()
 
 
 def _export_drawing(idw, assembly, drawing_info, is_assy=False):
+    """Export print, pdf and dxf files from one drawing
+
+    Parameters
+    ----------
+    idw: obj
+        Drawing Document class from inventor.py
+    assembly: str
+        AGR part number usually in 'AGR0000-000-00' format
+    drawing_info: dict
+        Drawing information
+    is_assy: bool
+        is the part an assenmbly?
+    """
     print_size = drawing_info['size']
     if print_size == 'A2':
         print_size = 'A3'
@@ -38,6 +84,21 @@ def _export_drawing(idw, assembly, drawing_info, is_assy=False):
 
 
 def _load_children(assembly):
+    """Load children from parent
+
+    From the assembly idw's part list and iam's bom, return a list
+    of all the drawings used under this section.
+
+    Parameters
+    ----------
+    assembly: str
+        AGR part number usually in 'AGR0000-000-00' format
+
+    Returns
+    -------
+    partcodes: 'obj' of 'str'
+        list of drawings
+    """
     path1 = system.EXPORT_DIR.joinpath(assembly).joinpath('part_list.xlsx')
     df1 = pd.read_excel(str(path1))
     p1 = df1.loc[df1['Dwg_No'].notnull(), 'Dwg_No']
@@ -52,6 +113,16 @@ def _load_children(assembly):
 
 
 def create_format_matrix(assembly):
+    """File format type spreadsheeet
+
+    Find all ipt, iam, idw and dwg files under the assembly,
+    create a file format report.
+
+    Parameters
+    ----------
+    assembly: str
+        AGR part number usually in 'AGR0000-000-00' format
+    """
     ipt_paths = []
     iam_paths = []
     idw_paths = []
@@ -74,22 +145,46 @@ def create_format_matrix(assembly):
     df.to_excel(str(path), index=False)
 
 
-def export_parts(assembly, app):
+def process_parts(assembly, app):
+    """Process Parts
+
+    1) Load spreadsheet - drawing_info.xlsx
+    2) Load spreadsheet - format_type.xlsx
+    3) Create a list of idw paths
+    4) Open each drawings (idw)
+    5) Pull drawing info to dict
+    6) Export print, pdf and dxf files
+    7) Save spreadsheet - drawing_info.xlsx
+    8) Unzip files
+
+    Parameters
+    ----------
+    assembly : str
+        AGR part number usually in 'AGR0000-000-00' format
+    app : obj
+        Inventor Application COM Object
+    """
+    # 1) Load spreadsheet - drawing_info.xlsx
     info_path = system.EXPORT_DIR.joinpath(assembly).joinpath('drawing_info.xlsx')
     if os.path.exists(str(info_path)):
         rs = pd.read_excel(str(info_path))
     else:
         rs = pd.DataFrame(columns=['partcode', 'rev', 'desc', 'material', 'finish', 'size'])
 
+    # 2) Load spreadsheet -  format_type.xlsx, create a list of idw paths
     path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
     df = pd.read_excel(str(path))
     df = df.loc[df['idw']==True, ['partcode', 'iam']]
 
+    # 3) Create a list of idw paths
     paths = []
     for partcode in df['partcode']:
         path = system.find_path(partcode, 'idw')
         paths.append(path)
 
+    # 4) Open each drawings
+    # 5) Pull drawing info to dict
+    # 6) export print, pdf and dxf files
     for path, is_assy in zip(paths, df['iam']):
         idw = inventor.Drawing(path, app)
         drawing_info = idw.get_drawing_info()
@@ -97,8 +192,10 @@ def export_parts(assembly, app):
         _export_drawing(idw, assembly, drawing_info, is_assy)
         idw.close()
 
+    # 7) Save spreadsheet - drawing_info.xlsx
     rs.to_excel(str(info_path), index=False)
 
+    # 8) Unzip files
     for partcode in df['partcode']:
         file = partcode + '.zip'
         export_path = system.EXPORT_DIR.joinpath(assembly).joinpath('dxf')
@@ -108,14 +205,26 @@ def export_parts(assembly, app):
 
 
 def batch_export(assembly):
+    """Main - Batch Export Drawing
+
+    1) Create project folder
+    2) Connect to Inventor COM API
+    3) Process assembly
+    4) Find all idw part files in the vault
+    5) Process parts
+    """
     system.create_project(assembly)
     app = inventor.application()
-    export_assembly(assembly, app)
+    process_assembly(assembly, app)
     create_format_matrix(assembly)
-    export_parts(assembly, app)
+    process_parts(assembly, app)
 
 
 def export_to(partcode, filetype):
+    """Main - Export to ...
+
+    Export one drawing to the specified file format
+    """
     app = inventor.application()
     ipt_convert = [
         'CATPart', 'jt', 'ipt', 'igs', 'iges', 'sat',
