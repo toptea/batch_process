@@ -40,7 +40,8 @@ def main_ui():
 
         Please pick the following options:
         1) Batch Export
-        2) Export to...
+        2) Batch Export from <file> to <file format>
+        2) Export <partcode> to <file format>
         q) quit
         """
     )
@@ -50,6 +51,8 @@ def main_ui():
         if user_input == '1':
             batch_export_ui()
         elif user_input == '2':
+            batch_export_from_ui()
+        elif user_input == '3':
             export_to_ui()
         elif user_input == 'q' or user_input == 'quit':
             exit()
@@ -71,6 +74,31 @@ def batch_export_ui():
             core.batch_export(user_input)
 
 
+def batch_export_from_ui():
+    print("    Please enter the file name with the list of partcodes you want to export.")
+    print("    Enter 'b' to go back")
+    print("    Enter 'q' to quit\n")
+    while True:
+        filename = input('File: ')
+        if filename == '':
+            filename = 'export.txt'
+        if filename == 'b' or filename == 'back':
+            main_ui()
+        elif filename == 'q' or filename == 'quit':
+            exit()
+        else:
+            print("    Please enter the file format you want to convert to.")
+            print("    Enter 'b' to go back")
+            print("    Enter 'q' to quit\n")
+            filetype = input('File format: ')
+            if filetype == 'b' or filetype == 'back':
+                main_ui()
+            elif filetype == 'q' or filetype == 'quit':
+                exit()
+            else:
+                core.batch_export_from(filename, filetype)
+
+
 def export_to_ui():
     print("    Please enter the drawing number you want to export.")
     print("    Enter 'b' to go back")
@@ -83,6 +111,8 @@ def export_to_ui():
             exit()
         else:
             print("    Please enter the file format you want to convert to.")
+            print("    Enter 'b' to go back")
+            print("    Enter 'q' to quit\n")
             filetype = input('File format: ')
             if filetype == 'b' or filetype == 'back':
                 main_ui()

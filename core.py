@@ -61,6 +61,9 @@ def process_assembly(assembly, app):
 def _export_drawing(idw, assembly, drawing_info, is_assy=False):
     """Export print, pdf and dxf files from one drawing
 
+    Used in 'process_assembly(assembly, app)' and
+    process_parts(assembly, app) functions.
+
     Parameters
     ----------
     idw: obj
@@ -86,6 +89,7 @@ def _export_drawing(idw, assembly, drawing_info, is_assy=False):
 def _load_children(assembly):
     """Load children from parent
 
+    Used in 'create_format_matrix(assembly)' function.
     From the assembly idw's part list and iam's bom, return a list
     of all the drawings used under this section.
 
@@ -218,6 +222,43 @@ def batch_export(assembly):
     process_assembly(assembly, app)
     create_format_matrix(assembly)
     process_parts(assembly, app)
+
+
+def batch_export_from(filename, filetype):
+    app = inventor.application()
+
+    with open(str(system.EXPORT_DIR.joinpath(filename))) as file:
+        partcodes = [line.strip() for line in file]
+
+    paths = []
+    ipt_convert = [
+        'CATPart', 'jt', 'ipt', 'igs', 'iges', 'sat',
+        'smt', 'stl', 'step', 'stp', 'xgl', 'zgl'
+    ]
+    for partcode in partcodes:
+        if filetype in ipt_convert:
+            path = system.find_path(partcode, 'ipt')
+        else:
+            path = system.find_path(partcode, 'idw')
+        paths.append(path)
+
+    for path in paths:
+        if filetype in ipt_convert:
+            inv = inventor.Part(path, app)
+        else:
+            inv = inventor.Drawing(path, app)
+        inv.export_to(system.EXPORT_DIR, filetype)
+        inv.close()
+
+    for partcode in partcodes:
+        try:
+            file = partcode + '.zip'
+            export_path = system.EXPORT_DIR
+            with zipfile.ZipFile(str(export_path.joinpath(file)), 'r') as zip_ref:
+                zip_ref.extractall(str(export_path))
+            os.remove(str(export_path.joinpath(file)))
+        except:
+            pass
 
 
 def export_to(partcode, filetype):
