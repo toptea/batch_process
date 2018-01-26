@@ -26,11 +26,12 @@ def create_project(partcode):
     directory = str(EXPORT_DIR.joinpath(partcode))
     if not os.path.exists(directory):
         os.makedirs(directory)
-        os.makedirs(directory + '\print\A0')
-        os.makedirs(directory + '\print\A1')
-        os.makedirs(directory + '\print\A3')
-        os.makedirs(directory + '\pdf')
-        os.makedirs(directory + '\dxf')
+        os.makedirs(directory + r'\print\A0')
+        os.makedirs(directory + r'\print\A1')
+        os.makedirs(directory + r'\print\A3')
+        os.makedirs(directory + r'\pdf')
+        os.makedirs(directory + r'\from_autocad')
+        # os.makedirs(directory + r'\dxf')
         # os.makedirs(directory + '\dwg')
 
 

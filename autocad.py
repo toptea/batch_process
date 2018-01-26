@@ -33,6 +33,7 @@ class Document:
     Document COM object. Used to query inventor current file.
     Please Note! There is not much documentation online on AutoCAD COM API.
     End up using the AutoCAD 'SendCommand' method most of the time.
+    Set the 'load file' prompt off so we can automate.
 
     Parameters
     ----------
@@ -56,37 +57,16 @@ class Document:
     """
     def __init__(self, path, app, export_dir=EXPORT_DIR):
         self.app = app
-        self.doc = self._load_document(path, app)
+        self.doc = app.Documents.Open(str(path), False)
+        self.doc.SendCommand('FILEDIA 0 ')
         self.export_dir = export_dir
         self.path = path
+
 
     @property
     def partcode(self):
         """str: return the file's partcode from it's full path"""
         return self.path.stem
-
-    @staticmethod
-    def _load_document(path, app):
-        """Inventor Document Object
-
-        Open the specified AutcCAD document.
-        Set the 'load file' prompt off so we can automate.
-
-        Parameters
-        ----------
-        path : obj
-            Path Object from python pathlib module
-        app : obj
-            AutoCAD Application COM Object
-
-        Returns
-        -------
-        obj
-            AutoCAD Document COM Object
-        """
-        doc = app.Documents.Open(str(path), False)
-        doc.SendCommand('FILEDIA 0 ')
-        return doc
 
     def export_to_pdf(self, subdir):
         """Export dwg file to pdf

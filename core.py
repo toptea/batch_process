@@ -3,6 +3,7 @@ Core Program
 """
 
 import inventor
+import autocad
 import system
 
 import pandas as pd
@@ -12,6 +13,8 @@ import os
 
 def process_assembly(assembly, app):
     """Process Assembly
+
+    Assembly must be an Inventor file and have pick list on the first page.
 
     1) Open assembly drawing (ipt)
     2) Pull drawing info to dict
@@ -43,7 +46,7 @@ def process_assembly(assembly, app):
     rs.to_excel(str(path), index=False)
 
     # 4) Export print, pdf and dxf file
-    _export_drawing(idw, assembly, drawing_info, is_assy=True)
+    _export_inventer_drawing(idw, assembly, drawing_info, is_assy=True)
 
     # 5) Save to spreadsheet - part_list.xlsx
     idw.export_part_list('xlsx')
@@ -58,7 +61,7 @@ def process_assembly(assembly, app):
     iam.close()
 
 
-def _export_drawing(idw, assembly, drawing_info, is_assy=False):
+def _export_inventer_drawing(idw, assembly, drawing_info, is_assy=False):
     """Export print, pdf and dxf files from one drawing
 
     Used in 'process_assembly(assembly, app)' and
@@ -82,9 +85,9 @@ def _export_drawing(idw, assembly, drawing_info, is_assy=False):
     idw.export_to(print_dir, 'pdf')
     idw.export_to(assembly + '/pdf/', 'pdf')
     if not is_assy:
-        idw.export_to(assembly + '/dxf/', 'dxf')
+        # idw.export_to(assembly + '/dxf/', 'dxf')
         # idw.export_to(assembly + '/dwg/', 'dwg')
-
+        pass
 
 def _load_children(assembly):
     """Load children from parent
@@ -159,7 +162,9 @@ def process_parts(assembly, app):
     5) Pull drawing info to dict
     6) Export print, pdf and dxf files
     7) Save spreadsheet - drawing_info.xlsx
-    8) Unzip files
+    8) Create a list of dwg paths
+    9) export pdf files (AutoCAD)
+    10) Unzip files
 
     Parameters
     ----------
@@ -178,34 +183,50 @@ def process_parts(assembly, app):
     # 2) Load spreadsheet -  format_type.xlsx, create a list of idw paths
     path = system.EXPORT_DIR.joinpath(assembly).joinpath('format_type.xlsx')
     df = pd.read_excel(str(path))
-    df = df.loc[df['idw']==True, ['partcode', 'iam']]
+    inv_df = df.loc[df['idw']==True, ['partcode', 'iam']]
+    atc_df = df.loc[df['dwg']==True, ['partcode']]
 
     # 3) Create a list of idw paths
     paths = []
-    for partcode in df['partcode']:
+    for partcode in inv_df['partcode']:
         path = system.find_path(partcode, 'idw')
         paths.append(path)
 
     # 4) Open each drawings
     # 5) Pull drawing info to dict
     # 6) export print, pdf and dxf files
-    for path, is_assy in zip(paths, df['iam']):
-        idw = inventor.Drawing(path, app)
-        drawing_info = idw.get_drawing_info()
-        rs = rs.append(drawing_info, ignore_index=True)
-        _export_drawing(idw, assembly, drawing_info, is_assy)
-        idw.close()
-
     # 7) Save spreadsheet - drawing_info.xlsx
-    rs.to_excel(str(info_path), index=False)
+    if len(paths) > 0:
+        for path, is_assy in zip(paths, df['iam']):
+            idw = inventor.Drawing(path, app)
+            drawing_info = idw.get_drawing_info()
+            rs = rs.append(drawing_info, ignore_index=True)
+            _export_inventer_drawing(idw, assembly, drawing_info, is_assy)
+            idw.close()
 
-    # 8) Unzip files
-    for partcode in df['partcode']:
-        file = partcode + '.zip'
-        export_path = system.EXPORT_DIR.joinpath(assembly).joinpath('dxf')
-        with zipfile.ZipFile(str(export_path.joinpath(file)), 'r') as zip_ref:
-            zip_ref.extractall(str(export_path))
-        os.remove(str(export_path.joinpath(file)))
+        rs.to_excel(str(info_path), index=False)
+
+    # 8) Create a list of dwg paths
+    paths = []
+    for partcode in atc_df['partcode']:
+        path = system.find_path(partcode, 'dwg')
+        paths.append(path)
+
+    # 9) export pdf files (AutoCAD)
+    autocad_app = autocad.application()
+    if len(paths) > 0:
+        for path in paths:
+            dwg = autocad.Drawing(path, autocad_app)
+            dwg.export_to(assembly + r'\from_autocad', 'pdf')
+            dwg.close()
+
+    # 10) Unzip files
+    # for partcode in inv_df['partcode']:
+    #     file = partcode + '.zip'
+    #     export_path = system.EXPORT_DIR.joinpath(assembly).joinpath('dxf')
+    #     with zipfile.ZipFile(str(export_path.joinpath(file)), 'r') as zip_ref:
+    #         zip_ref.extractall(str(export_path))
+    #     os.remove(str(export_path.joinpath(file)))
 
 
 def batch_export(assembly):
