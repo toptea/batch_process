@@ -94,6 +94,13 @@ class Document:
 
         Publish file into the export directory using the Inventor translator
         add-in. Can export files such as; dwf, dxf, dwg, pdf, iges & step.
+
+        Parameters
+        ----------
+        subdir: str
+            Sub directory for exported file.
+        filetype: str
+            Inventor supported file format
         """
         file = self.partcode + '.' + filetype
         path = self.export_dir.joinpath(subdir).joinpath(file)
