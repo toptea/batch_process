@@ -41,7 +41,9 @@ def main_ui():
         Please pick the following options:
         1) Batch Export
         2) Batch Export from <file> to <file format>
-        2) Export <partcode> to <file format>
+        3) Export <partcode> to <file format>
+        4) CNC - Batch Export dxf from <file> into G: Drive
+        5) CNC - Export <partcode> to dxf into G: Drive
         q) quit
         """
     )
@@ -54,6 +56,10 @@ def main_ui():
             batch_export_from_ui()
         elif user_input == '3':
             export_to_ui()
+        elif user_input == '4':
+            cnc_batch_export_ui()
+        elif user_input == '5':
+            cnc_export_to()
         elif user_input == 'q' or user_input == 'quit':
             exit()
         else:
@@ -120,6 +126,36 @@ def export_to_ui():
                 exit()
             else:
                 core.export_to(partcode, filetype)
+
+
+def cnc_batch_export_ui():
+    print("    Please enter the file name with the list of partcodes you want to export.")
+    print("    Enter 'b' to go back")
+    print("    Enter 'q' to quit\n")
+    while True:
+        filename = input('File: ')
+        if filename == '':
+            filename = 'export.txt'
+        if filename == 'b' or filename == 'back':
+            main_ui()
+        elif filename == 'q' or filename == 'quit':
+            exit()
+        else:
+            core.cnc_batch_export_from(filename)
+
+
+def cnc_export_to():
+    print("    Please enter the drawing number you want to export.")
+    print("    Enter 'b' to go back")
+    print("    Enter 'q' to quit\n")
+    while True:
+        partcode = input('Export: ')
+        if partcode == 'b' or partcode == 'back':
+            main_ui()
+        elif partcode == 'q' or partcode == 'quit':
+            exit()
+        else:
+            core.cnc_export_to(partcode)
 
 
 if __name__ == '__main__':

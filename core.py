@@ -309,3 +309,25 @@ def export_to(partcode, filetype):
         os.remove(str(export_path.joinpath(file)))
     except:
         pass
+
+
+def cnc_batch_export_from(filename):
+    """export dxf files and save them on a memory stick for cnc"""
+    batch_export_from(filename, 'dxf')
+    with open(str(system.EXPORT_DIR.joinpath(filename))) as file:
+        partcodes = [line.strip() for line in file]
+
+    for partcode in partcodes:
+        file = partcode + '.dxf'
+        path = system.EXPORT_DIR.joinpath(file)
+        os.remove("G:/" + file)
+        os.rename(str(path), "G:/" + file)
+
+
+def cnc_export_to(partcode):
+    """export dxf file and save them on a memory stick for cnc"""
+    export_to(partcode, 'dxf')
+    file = partcode + '.dxf'
+    path = system.EXPORT_DIR.joinpath(file)
+    os.remove("G:/" + file)
+    os.rename(str(path), "G:/" + file)
